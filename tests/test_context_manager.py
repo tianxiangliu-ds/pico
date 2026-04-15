@@ -28,7 +28,7 @@ def test_context_manager_assembles_sections_in_expected_order(tmp_path):
 
     prompt, metadata = ContextManager(agent).build("Where is the deploy key?")
 
-    assert prompt.index("You are Mini-Coding-Agent") < prompt.index("Memory:")
+    assert prompt.index("You are pico") < prompt.index("Memory:")
     assert prompt.index("Memory:") < prompt.index("Relevant memory:")
     assert prompt.index("Relevant memory:") < prompt.index("Transcript:")
     assert prompt.index("Transcript:") < prompt.index("Current user request:")
@@ -44,7 +44,10 @@ def test_context_manager_reduces_relevant_memory_before_history_and_preserves_ne
     agent.memory.append_note("keep episodic note two " + ("D" * 220), tags=("keep",), created_at="2026-04-07T10:01:00+00:00")
     agent.memory.append_note("keep episodic note three " + ("E" * 220), tags=("keep",), created_at="2026-04-07T10:02:00+00:00")
     agent.record({"role": "user", "content": "OLD-CONTEXT " + ("D" * 260), "created_at": "2026-04-07T09:59:00+00:00"})
-    agent.record({"role": "assistant", "content": "RECENT-CONTEXT " + ("E" * 260), "created_at": "2026-04-07T10:01:00+00:00"})
+    for minute in range(1, 8):
+        role = "assistant" if minute % 2 == 1 else "user"
+        content = "RECENT-CONTEXT " + ("E" * 260) if minute == 7 else f"recent-{minute} " + ("E" * 180)
+        agent.record({"role": role, "content": content, "created_at": f"2026-04-07T10:0{minute}:00+00:00"})
 
     manager = ContextManager(
         agent,
@@ -164,7 +167,7 @@ def test_context_manager_collapses_older_duplicate_reads_into_one_summary_line(t
     prompt, metadata = ContextManager(agent).build("check the file")
     transcript = prompt.split("\n\nTranscript:\n", 1)[1].split("\n\nCurrent user request:", 1)[0]
 
-    assert transcript.count("[tool:read_file]") == 1
+    assert transcript.count("[tool:read_file]") == 0
     assert "sample.txt -> alpha | beta" in transcript
     assert metadata["history"]["older_entries_count"] == 1
     assert metadata["history"]["collapsed_duplicate_reads"] == 1
@@ -200,3 +203,37 @@ def test_context_manager_summarizes_older_tool_output_into_one_line(tmp_path):
     assert "FAIL test_four" not in transcript
     assert metadata["history"]["summarized_tool_count"] == 1
     assert metadata["history"]["reused_file_summary_count"] == 0
+
+
+def test_context_manager_relevant_memory_can_mix_durable_notes(tmp_path):
+    memory_root = tmp_path / ".pico" / "memory"
+    topics_dir = memory_root / "topics"
+    topics_dir.mkdir(parents=True)
+    (memory_root / "MEMORY.md").write_text(
+        "# Durable Memory Index\n\n"
+        "- [project-conventions](topics/project-conventions.md): Project Conventions\n"
+        "  - summary: Stable repository conventions.\n"
+        "  - tags: convention\n",
+        encoding="utf-8",
+    )
+    (topics_dir / "project-conventions.md").write_text(
+        "# Project Conventions\n\n"
+        "- topic: project-conventions\n"
+        "- summary: Stable repository conventions.\n"
+        "- tags: convention\n"
+        "- updated_at: 2026-04-12T08:14:49+00:00\n\n"
+        "## Notes\n"
+        "- Use constrained tools instead of guessing.\n",
+        encoding="utf-8",
+    )
+
+    agent = build_agent(tmp_path, [])
+
+    prompt, metadata = ContextManager(agent).build("What conventions should I follow?")
+    relevant_section = prompt.split("Relevant memory:\n", 1)[1].split("\n\nTranscript:", 1)[0]
+
+    assert "Use constrained tools instead of guessing." in relevant_section
+    assert any("Use constrained tools instead of guessing." in item for item in metadata["relevant_memory"]["selected_notes"])
+    assert metadata["relevant_memory"]["selected_durable_count"] == 1
+    assert metadata["relevant_memory"]["selected_sources"] == ["project-conventions"]
+    assert metadata["relevant_memory"]["selected_kinds"] == ["durable"]
