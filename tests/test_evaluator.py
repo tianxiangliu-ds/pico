@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
+from collections import Counter
 
 import pytest
 
 from pico.evaluator import (
     BenchmarkEvaluator,
     load_benchmark,
+    run_harness_regression_v2,
     run_fixed_benchmark,
     summarize_rows,
 )
@@ -15,7 +17,14 @@ def test_load_benchmark_validates_fixed_schema():
     benchmark = load_benchmark(Path("benchmarks/coding_tasks.json"))
 
     assert benchmark["schema_version"] == 1
-    assert len(benchmark["tasks"]) == 6
+    assert len(benchmark["tasks"]) == 12
+    assert Counter(task["category"] for task in benchmark["tasks"]) == {
+        "documentation": 2,
+        "text-edit": 2,
+        "tool-boundary": 3,
+        "recovery": 3,
+        "durable-contract": 2,
+    }
     for task in benchmark["tasks"]:
         assert {"id", "prompt", "fixture_repo", "allowed_tools", "step_budget", "expected_artifact", "verifier", "category"} <= set(task)
         assert isinstance(task["allowed_tools"], list)
@@ -84,12 +93,14 @@ def test_run_fixed_benchmark_reports_metadata_and_success_definition(tmp_path):
 
     assert artifact["schema_version"] == 1
     assert artifact["summary"] == {
-        "total_tasks": 6,
-        "passed": 6,
+        "total_tasks": 12,
+        "passed": 12,
         "failed": 0,
         "pass_rate": 1.0,
-        "within_budget": 6,
-        "verifier_passes": 6,
+        "within_budget": 12,
+        "verifier_passes": 12,
+        "within_budget_rate": 1.0,
+        "verifier_pass_rate": 1.0,
         "failure_category_counts": {},
     }
     assert artifact["failure_category_counts"] == {}
@@ -118,6 +129,45 @@ def test_run_fixed_benchmark_reports_metadata_and_success_definition(tmp_path):
         assert row["expected_artifact_exists"] is True
         assert row["non_failure_stop_reason"] is True
         assert row["stop_reason"] == "final_answer_returned"
+
+
+def test_run_fixed_benchmark_covers_recovery_and_durable_contract_rows(tmp_path):
+    artifact = run_fixed_benchmark(
+        benchmark_path=Path("benchmarks/coding_tasks.json"),
+        artifact_path=tmp_path / "benchmark-v1.json",
+        workspace_root=tmp_path / "workspaces",
+    )
+
+    context_row = next(item for item in artifact["rows"] if item["id"] == "context_reduction_checkpoint")
+    durable_row = next(item for item in artifact["rows"] if item["id"] == "durable_promotion_reject")
+
+    trace_path = (tmp_path / "workspaces" / context_row["run_dir_relpath"] / "trace.jsonl").resolve()
+    trace_events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
+
+    assert any(
+        event.get("event") == "checkpoint_created" and event.get("trigger") == "context_reduction"
+        for event in trace_events
+    )
+    assert durable_row["report"]["durable_rejections"] == [
+        "dependency-facts:secret_shaped",
+        "key-decisions:transient_task_state",
+    ]
+
+
+def test_run_harness_regression_v2_writes_named_artifact(tmp_path):
+    artifact_path = tmp_path / "artifacts" / "harness-regression-v2.json"
+
+    artifact = run_harness_regression_v2(
+        benchmark_path=Path("benchmarks/coding_tasks.json"),
+        artifact_path=artifact_path,
+        workspace_root=tmp_path / "workspaces",
+    )
+
+    assert artifact_path.exists()
+    assert artifact["summary"]["total_tasks"] == 12
+    assert artifact["summary"]["pass_rate"] == 1.0
+    assert artifact["summary"]["within_budget_rate"] == 1.0
+    assert artifact["summary"]["verifier_pass_rate"] == 1.0
 
 
 def test_run_task_anchors_paths_to_fixture_copy_even_inside_repo_workspace():

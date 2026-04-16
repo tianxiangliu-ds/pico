@@ -60,3 +60,16 @@ def test_task_state_snapshot_keeps_final_answer():
 
     assert snapshot["final_answer"] == "Final answer."
     assert snapshot["stop_reason"] == STOP_REASON_FINAL_ANSWER_RETURNED
+
+
+def test_task_state_snapshot_keeps_checkpoint_reference_without_body():
+    state = TaskState.create(run_id="run_006", task_id="task_006", user_request="Resume the task.")
+    state.checkpoint_id = "ckpt_001"
+    state.resume_status = "full-valid"
+
+    snapshot = state.to_dict()
+
+    assert snapshot["checkpoint_id"] == "ckpt_001"
+    assert snapshot["resume_status"] == "full-valid"
+    assert "current_goal" not in snapshot
+    assert "next_step" not in snapshot

@@ -65,3 +65,58 @@ def test_file_summaries_use_canonical_paths_and_freshness(tmp_path):
     memory.invalidate_file_summary("sample.txt")
 
     assert "sample.txt" not in memory.to_dict()["file_summaries"]
+
+
+def test_process_notes_keep_kind_and_latest_duplicate_wins():
+    memory = LayeredMemory()
+
+    memory.append_note(
+        "Shell partial success on README.md; inspect diff before retry",
+        tags=("process", "partial_success"),
+        created_at="2026-04-07T10:00:00+00:00",
+        kind="process",
+    )
+    memory.append_note(
+        "Shell partial success on README.md; inspect diff before retry",
+        tags=("process", "partial_success"),
+        created_at="2026-04-07T10:01:00+00:00",
+        kind="process",
+    )
+
+    notes = memory.to_dict()["episodic_notes"]
+
+    assert len(notes) == 1
+    assert notes[0]["kind"] == "process"
+    assert notes[0]["created_at"] == "2026-04-07T10:01:00+00:00"
+
+
+def test_durable_memory_index_and_topic_notes_are_loaded_and_retrieved(tmp_path):
+    memory_root = tmp_path / ".pico" / "memory"
+    topics_dir = memory_root / "topics"
+    topics_dir.mkdir(parents=True)
+    (memory_root / "MEMORY.md").write_text(
+        "# Durable Memory Index\n\n"
+        "- [project-conventions](topics/project-conventions.md): Project Conventions\n"
+        "  - summary: Stable repository conventions.\n"
+        "  - tags: convention\n",
+        encoding="utf-8",
+    )
+    (topics_dir / "project-conventions.md").write_text(
+        "# Project Conventions\n\n"
+        "- topic: project-conventions\n"
+        "- summary: Stable repository conventions.\n"
+        "- tags: convention\n"
+        "- updated_at: 2026-04-12T08:14:49+00:00\n\n"
+        "## Notes\n"
+        "- Use constrained tools instead of guessing.\n"
+        "- Preserve local agent state under .pico/.\n",
+        encoding="utf-8",
+    )
+
+    memory = LayeredMemory(workspace_root=tmp_path)
+
+    snapshot = memory.to_dict()
+    assert snapshot["durable_topics"] == ["project-conventions"]
+
+    lines = [line for line in memory.retrieval_view("constrained tools", limit=4).splitlines() if line.startswith("- ")]
+    assert any("Use constrained tools instead of guessing." in line for line in lines)
