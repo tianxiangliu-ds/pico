@@ -17,7 +17,7 @@ def build_arg_parser():
     parser.add_argument("--runs-root", required=True, help="Path to .pico/runs root.")
     parser.add_argument("--provider-experiments", default=None, help="Optional provider experiments JSON.")
     parser.add_argument("--experiment-mode", choices=("synthetic", "real"), default="synthetic", help="Whether to use deterministic synthetic experiments or real model runs.")
-    parser.add_argument("--real-provider", choices=("gpt", "claude"), default="gpt", help="Provider to use for real experiment mode.")
+    parser.add_argument("--real-provider", choices=("gpt", "claude", "deepseek"), default="gpt", help="Provider to use for real experiment mode.")
     parser.add_argument("--memory-repetitions", type=int, default=3, help="Repetitions for the small memory experiment.")
     parser.add_argument("--large-memory-repetitions", type=int, default=5, help="Repetitions for the large memory experiment.")
     parser.add_argument("--context-repetitions", type=int, default=5, help="Repetitions for the context stress matrix.")

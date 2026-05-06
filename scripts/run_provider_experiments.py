@@ -12,7 +12,7 @@ from pico.metrics import run_provider_experiments  # noqa: E402
 
 
 def build_arg_parser():
-    parser = argparse.ArgumentParser(description="Run Claude/GPT provider experiments for pico benchmark tasks.")
+    parser = argparse.ArgumentParser(description="Run GPT, Claude, and DeepSeek provider experiments for pico benchmark tasks.")
     parser.add_argument("--benchmark-path", default="benchmarks/coding_tasks.json", help="Path to benchmark task JSON.")
     parser.add_argument("--workspace-root", default="artifacts/provider-workspaces", help="Workspace root for provider experiment copies.")
     parser.add_argument("--artifact-root", default="artifacts/provider-artifacts", help="Directory to store provider benchmark artifacts.")

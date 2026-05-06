@@ -1,4 +1,8 @@
+import os
+from unittest.mock import patch
+
 from pico.metrics import (
+    _provider_profile,
     run_context_ablation_v2,
     run_memory_ablation_v2,
     run_recovery_ablation_v2,
@@ -19,6 +23,37 @@ def test_run_context_ablation_v2_writes_expected_artifact(tmp_path):
     assert artifact["config_count"] == 12
     assert len(artifact["configs"]) == 12
     assert "current_request_preserved_rate" in artifact["summary"]
+
+
+def test_provider_profile_loads_project_env_before_reading_deepseek_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                "PICO_DEEPSEEK_API_KEY=sk-project-deepseek",
+                "PICO_DEEPSEEK_MODEL=deepseek-v4-pro",
+                "PICO_DEEPSEEK_API_BASE=https://api.deepseek.com/anthropic",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with patch.dict(
+        os.environ,
+        {
+            "DEEPSEEK_API_KEY": "sk-legacy-deepseek",
+            "DEEPSEEK_MODEL": "legacy-deepseek-model",
+            "DEEPSEEK_API_BASE": "https://legacy.deepseek.example/anthropic",
+        },
+        clear=True,
+    ):
+        profile = _provider_profile("deepseek")
+
+    assert profile["status"] == "ready"
+    assert profile["api_key"] == "sk-project-deepseek"
+    assert profile["model"] == "deepseek-v4-pro"
+    assert profile["base_url"] == "https://api.deepseek.com/anthropic"
 
 
 def test_run_memory_ablation_v2_writes_expected_artifact(tmp_path):

@@ -24,7 +24,7 @@ def build_arg_parser():
     parser.add_argument("--provider-workspace-root", default="artifacts/provider-workspaces", help="Workspace root for provider experiment copies.")
     parser.add_argument("--provider-artifact-root", default="artifacts/provider-artifacts", help="Artifact root for provider benchmark outputs.")
     parser.add_argument("--experiment-mode", choices=("synthetic", "real"), default="synthetic")
-    parser.add_argument("--real-provider", choices=("gpt", "claude"), default="gpt")
+    parser.add_argument("--real-provider", choices=("gpt", "claude", "deepseek"), default="gpt")
     parser.add_argument("--memory-repetitions", type=int, default=3)
     parser.add_argument("--large-memory-repetitions", type=int, default=5)
     parser.add_argument("--context-repetitions", type=int, default=5)

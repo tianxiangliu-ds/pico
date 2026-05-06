@@ -103,6 +103,23 @@ def test_cli_build_agent_uses_default_configured_secret_names(tmp_path):
         assert agent.secret_env_summary()["secret_env_names"] == ["GH_PAT"]
 
 
+def test_cli_build_agent_loads_project_env_secrets_before_redaction_setup(tmp_path):
+    class DummyModelClient:
+        def __init__(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+
+        def complete(self, prompt, max_new_tokens):
+            raise AssertionError("model should not be invoked")
+
+    (tmp_path / "README.md").write_text("demo\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("PICO_DEEPSEEK_API_KEY=sk-project-secret\n", encoding="utf-8")
+    with patch.dict(os.environ, {}, clear=True), patch("pico.cli.AnthropicCompatibleModelClient", DummyModelClient):
+        args = mini_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--provider", "deepseek"])
+        agent = mini_cli.build_agent(args)
+        assert agent.secret_env_summary()["secret_env_names"] == ["PICO_DEEPSEEK_API_KEY"]
+
+
 def test_cli_build_agent_reads_secret_names_from_environment_config(tmp_path):
     class DummyModelClient:
         def __init__(self, *args, **kwargs):
