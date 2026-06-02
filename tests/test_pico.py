@@ -9,7 +9,7 @@ import pico as mini_pkg
 from pico import (
     AnthropicCompatibleModelClient,
     FakeModelClient,
-    MiniAgent,
+    Pico,
     OllamaModelClient,
     OpenAICompatibleModelClient,
     SessionStore,
@@ -27,7 +27,7 @@ def build_agent(tmp_path, outputs, **kwargs):
     workspace = build_workspace(tmp_path)
     store = SessionStore(tmp_path / ".pico" / "sessions")
     approval_policy = kwargs.pop("approval_policy", "auto")
-    return MiniAgent(
+    return Pico(
         model_client=FakeModelClient(outputs),
         workspace=workspace,
         session_store=store,
@@ -86,7 +86,7 @@ def test_agent_only_stores_reusable_epistemic_notes(tmp_path):
     assert not any(note["text"] == "Done." for note in notes)
     assert not any(note["text"] == "Done." for note in notes)
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>It is red.</final>"]),
         workspace=agent.workspace,
         session_store=agent.session_store,
@@ -112,7 +112,7 @@ def test_file_summary_cache_is_invalidated_on_out_of_band_edit_and_path_spelling
     assert "sample.txt: alpha" in agent.memory.render_memory_text()
     file_path.write_text("beta\n", encoding="utf-8")
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient([]),
         workspace=agent.workspace,
         session_store=agent.session_store,
@@ -195,7 +195,7 @@ def test_agent_saves_and_resumes_session(tmp_path):
     agent = build_agent(tmp_path, ["<final>First pass.</final>"])
     assert agent.ask("Start a session") == "First pass."
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=agent.workspace,
         session_store=agent.session_store,
@@ -1050,7 +1050,7 @@ def test_resume_prompt_uses_checkpoint_state_not_just_history(tmp_path):
     }
     agent.session_store.save(agent.session)
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=build_workspace(tmp_path),
         session_store=agent.session_store,
@@ -1096,7 +1096,7 @@ def test_resume_invalidates_stale_file_summaries_and_marks_partial_stale(tmp_pat
     agent.session_store.save(agent.session)
     file_path.write_text("beta\n", encoding="utf-8")
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=build_workspace(tmp_path),
         session_store=agent.session_store,
@@ -1152,7 +1152,7 @@ def test_resume_marks_workspace_mismatch_when_checkpoint_runtime_identity_is_sta
     }
     agent.session_store.save(agent.session)
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=build_workspace(tmp_path),
         session_store=agent.session_store,
@@ -1214,7 +1214,7 @@ def test_resume_marks_schema_mismatch_when_checkpoint_version_is_incompatible(tm
     }
     agent.session_store.save(agent.session)
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=build_workspace(tmp_path),
         session_store=agent.session_store,
@@ -1231,7 +1231,7 @@ def test_resume_marks_no_checkpoint_when_session_has_no_checkpoint_state(tmp_pat
     agent.session.pop("checkpoints", None)
     agent.session_store.save(agent.session)
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=build_workspace(tmp_path),
         session_store=agent.session_store,
@@ -1288,7 +1288,7 @@ def test_freshness_mismatch_creates_checkpoint_before_model_completion(tmp_path)
 def test_runtime_identity_persists_key_execution_metadata(tmp_path):
     workspace = build_workspace(tmp_path)
     store = SessionStore(tmp_path / ".pico" / "sessions")
-    agent = MiniAgent(
+    agent = Pico(
         model_client=FakeModelClient(["<final>Done.</final>"]),
         workspace=workspace,
         session_store=store,
@@ -1347,7 +1347,7 @@ def test_resume_records_runtime_identity_mismatch_fields_in_metadata_and_trace(t
     }
     agent.session_store.save(agent.session)
 
-    resumed = MiniAgent.from_session(
+    resumed = Pico.from_session(
         model_client=FakeModelClient(["<final>Resumed.</final>"]),
         workspace=build_workspace(tmp_path),
         session_store=agent.session_store,
@@ -1547,7 +1547,7 @@ def test_agent_records_model_cache_metadata_in_last_prompt_metadata(tmp_path):
 
     workspace = build_workspace(tmp_path)
     store = SessionStore(tmp_path / ".pico" / "sessions")
-    agent = MiniAgent(
+    agent = Pico(
         model_client=CacheAwareFakeModelClient(["<final>Done.</final>"]),
         workspace=workspace,
         session_store=store,
@@ -1588,7 +1588,7 @@ def test_recent_transcript_entries_stay_richer_than_older_ones(tmp_path):
 def test_public_api_exports_resolve_through_package_path():
     assert callable(build_welcome)
     assert FakeModelClient is not None
-    assert MiniAgent is not None
+    assert Pico is not None
     assert OllamaModelClient is not None
     assert SessionStore is not None
     assert WorkspaceContext is not None
