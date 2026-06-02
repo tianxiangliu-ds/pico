@@ -4,7 +4,7 @@ import sys
 from unittest.mock import patch
 
 from pico import FakeModelClient, Pico, SessionStore, WorkspaceContext
-from pico import cli as mini_cli
+from pico import cli as pico_cli
 from pico.task_state import TaskState
 
 
@@ -68,7 +68,7 @@ def test_cli_build_agent_wires_secret_env_names_from_parser(tmp_path):
         "pico.cli.OllamaModelClient",
         DummyModelClient,
     ):
-        args = mini_cli.build_arg_parser().parse_args(
+        args = pico_cli.build_arg_parser().parse_args(
             [
                 "--cwd",
                 str(tmp_path),
@@ -80,7 +80,7 @@ def test_cli_build_agent_wires_secret_env_names_from_parser(tmp_path):
                 "GH_PAT",
             ]
         )
-        agent = mini_cli.build_agent(args)
+        agent = pico_cli.build_agent(args)
         assert set(agent.secret_env_summary()["secret_env_names"]) == {"GITHUB_PAT", "GH_PAT"}
 
 
@@ -98,8 +98,8 @@ def test_cli_build_agent_uses_default_configured_secret_names(tmp_path):
         "pico.cli.OllamaModelClient",
         DummyModelClient,
     ):
-        args = mini_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--approval", "auto"])
-        agent = mini_cli.build_agent(args)
+        args = pico_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--approval", "auto"])
+        agent = pico_cli.build_agent(args)
         assert agent.secret_env_summary()["secret_env_names"] == ["GH_PAT"]
 
 
@@ -115,8 +115,8 @@ def test_cli_build_agent_loads_project_env_secrets_before_redaction_setup(tmp_pa
     (tmp_path / "README.md").write_text("demo\n", encoding="utf-8")
     (tmp_path / ".env").write_text("PICO_DEEPSEEK_API_KEY=sk-project-secret\n", encoding="utf-8")
     with patch.dict(os.environ, {}, clear=True), patch("pico.cli.AnthropicCompatibleModelClient", DummyModelClient):
-        args = mini_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--provider", "deepseek"])
-        agent = mini_cli.build_agent(args)
+        args = pico_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--provider", "deepseek"])
+        agent = pico_cli.build_agent(args)
         assert agent.secret_env_summary()["secret_env_names"] == ["PICO_DEEPSEEK_API_KEY"]
 
 
@@ -133,23 +133,23 @@ def test_cli_build_agent_reads_secret_names_from_environment_config(tmp_path):
     with patch.dict(
         os.environ,
         {
-            "MCA_CUSTOM_SECRET": "custom-secret-value",
-            "MINI_CODING_AGENT_SECRET_ENV_NAMES": "MCA_CUSTOM_SECRET",
+            "PICO_CUSTOM_SECRET": "custom-secret-value",
+            "PICO_SECRET_ENV_NAMES": "PICO_CUSTOM_SECRET",
         },
         clear=True,
     ), patch("pico.cli.OllamaModelClient", DummyModelClient):
-        args = mini_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--approval", "auto"])
-        agent = mini_cli.build_agent(args)
-        assert agent.secret_env_summary()["secret_env_names"] == ["MCA_CUSTOM_SECRET"]
+        args = pico_cli.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--approval", "auto"])
+        agent = pico_cli.build_agent(args)
+        assert agent.secret_env_summary()["secret_env_names"] == ["PICO_CUSTOM_SECRET"]
 
 
 def test_run_shell_uses_allowlisted_environment_only(tmp_path):
     secret = "shh-allowlist-secret"
     agent = build_agent(tmp_path, [], approval_policy="auto")
-    script = 'import os; print(os.getenv("MCA_ALLOWLIST_SECRET", "missing"))'
+    script = 'import os; print(os.getenv("PICO_ALLOWLIST_SECRET", "missing"))'
     command = f"{shlex.quote(sys.executable)} -c {shlex.quote(script)}"
 
-    with patch.dict(os.environ, {"MCA_ALLOWLIST_SECRET": secret}, clear=False):
+    with patch.dict(os.environ, {"PICO_ALLOWLIST_SECRET": secret}, clear=False):
         result = agent.run_tool("run_shell", {"command": command, "timeout": 20})
 
     assert secret not in result
