@@ -1,7 +1,7 @@
 import os
 from unittest.mock import patch
 
-from pico.metrics import (
+from pico.evaluation.metrics import (
     _provider_profile,
     run_context_ablation_v2,
     run_memory_ablation_v2,

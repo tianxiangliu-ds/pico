@@ -3,7 +3,7 @@ import json
 import pytest
 
 from pico import FakeModelClient, Pico, SessionStore, WorkspaceContext
-from pico.evaluator import BenchmarkEvaluator, validate_benchmark
+from pico.evaluation.evaluator import BenchmarkEvaluator, validate_benchmark
 
 
 def build_agent(tmp_path, allowed_tools=None):

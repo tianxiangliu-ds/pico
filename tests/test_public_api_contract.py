@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pico
 from pico import Pico, SessionStore, WorkspaceContext, build_agent, build_arg_parser, build_welcome, main
 
@@ -23,24 +25,22 @@ def test_build_agent_returns_pico(tmp_path):
     assert isinstance(agent, Pico)
 
 
-def test_lightweight_package_split_keeps_old_imports_compatible():
+def test_lightweight_package_split_uses_package_paths_without_legacy_shims():
     from pico.evaluation.evaluator import BenchmarkEvaluator
     from pico.evaluation.metrics import run_context_ablation_v2
     from pico.features.memory import LayeredMemory
     from pico.providers.clients import FakeModelClient as ProviderFakeModelClient
-    from pico.evaluator import BenchmarkEvaluator as LegacyBenchmarkEvaluator
-    from pico.memory import LayeredMemory as LegacyLayeredMemory
-    from pico.metrics import run_context_ablation_v2 as legacy_run_context_ablation_v2
-    from pico.models import FakeModelClient as LegacyFakeModelClient
 
-    assert BenchmarkEvaluator is LegacyBenchmarkEvaluator
-    assert LayeredMemory is LegacyLayeredMemory
-    assert ProviderFakeModelClient is LegacyFakeModelClient
-    assert run_context_ablation_v2 is legacy_run_context_ablation_v2
+    assert BenchmarkEvaluator is not None
+    assert LayeredMemory is not None
+    assert ProviderFakeModelClient is not None
+    assert callable(run_context_ablation_v2)
+    for legacy_module in ("evaluator.py", "metrics.py", "models.py", "memory.py"):
+        assert not (Path("pico") / legacy_module).exists()
 
 
 def test_packaging_discovers_pico_subpackages():
-    pyproject_text = __import__("pathlib").Path("pyproject.toml").read_text(encoding="utf-8")
+    pyproject_text = Path("pyproject.toml").read_text(encoding="utf-8")
 
     assert "[tool.setuptools.packages.find]" in pyproject_text
     assert 'include = ["pico*"]' in pyproject_text
