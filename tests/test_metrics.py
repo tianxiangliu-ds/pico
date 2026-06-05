@@ -56,6 +56,17 @@ def test_provider_profile_loads_project_env_before_reading_deepseek_config(tmp_p
     assert profile["base_url"] == "https://api.deepseek.com/anthropic"
 
 
+def test_provider_profile_uses_right_codes_shared_key_for_gpt(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    with patch.dict(os.environ, {"PICO_RIGHT_CODES_API_KEY": "sk-right-codes"}, clear=True):
+        profile = _provider_profile("gpt")
+
+    assert profile["status"] == "ready"
+    assert profile["api_key"] == "sk-right-codes"
+    assert profile["model"] == "gpt-5.4"
+
+
 def test_run_memory_ablation_v2_writes_expected_artifact(tmp_path):
     artifact_path = tmp_path / "artifacts" / "memory-ablation-v2.json"
 

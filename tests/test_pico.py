@@ -664,6 +664,41 @@ def test_build_agent_uses_openai_provider_and_model_override(tmp_path):
     assert agent.model_client is fake_client
 
 
+def test_build_agent_uses_right_codes_shared_key_for_openai_provider(tmp_path):
+    args = type(
+        "Args",
+        (),
+        {
+            "cwd": str(tmp_path),
+            "provider": "openai",
+            "model": None,
+            "base_url": None,
+            "host": "http://127.0.0.1:11434",
+            "ollama_timeout": 300,
+            "openai_timeout": 300,
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "resume": None,
+            "approval": "ask",
+            "secret_env_names": [],
+            "max_steps": 6,
+            "max_new_tokens": 512,
+        },
+    )()
+
+    with patch.dict(os.environ, {"PICO_RIGHT_CODES_API_KEY": "sk-right-codes"}, clear=True):
+        with patch(
+            "pico.cli.OllamaModelClient",
+            side_effect=AssertionError("ollama client should not be used"),
+        ), patch("pico.cli.OpenAICompatibleModelClient") as mock_openai:
+            fake_client = mock_openai.return_value
+            agent = pico_pkg.build_agent(args)
+
+    mock_openai.assert_called_once()
+    assert mock_openai.call_args.kwargs["api_key"] == "sk-right-codes"
+    assert agent.model_client is fake_client
+
+
 def test_build_arg_parser_defaults_provider_to_deepseek(tmp_path):
     args = pico_pkg.build_arg_parser().parse_args(["--cwd", str(tmp_path)])
 
