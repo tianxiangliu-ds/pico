@@ -33,7 +33,7 @@ out = Path("benchmarks/results/main-resume-repro-2026-06-07")
 run_harness_regression_v2(
     benchmark_path=Path("benchmarks/coding_tasks.json"),
     artifact_path=out / "harness-regression-v2.json",
-    workspace_root=out / "workspaces",
+    workspace_root=Path("/tmp/pico-main-resume-workspaces"),
 )
 run_context_ablation_v2(out / "context-ablation-v2.json", repetitions=5)
 run_memory_ablation_v2(out / "memory-ablation-v2.json", repetitions=5)
@@ -60,7 +60,7 @@ PY
 
 | 数字 | 怎么来的 | 复现/查看方式 |
 | --- | --- | --- |
-| 2 类模型后端 | 这是早期 `resume-metrics.md` 的 provider 实验口径，不等于当前 main 所有可配置 provider 数。当前 main 已经支持更多 provider 配置路径。 | `_local/benchmark/artifacts/resume-metrics.md` 中 `Model backends: 2` |
+| 2 类模型后端 | 这是早期 `resume-metrics.md` 的 provider 实验口径，不等于当前 main 所有可配置 provider 数。当前 main 已经支持更多 provider 配置路径。 | 早期本地实验快照中的 `Model backends: 2` |
 | 7 类工具 | `pico/tools.py` 里 6 个基础工具，加上 `delegate`，总共 7 个可暴露工具。 | `BASE_TOOL_SPECS` 有 6 个：`list_files/read_file/search/run_shell/write_file/patch_file`，`legal_tool_names()` 额外加入 `delegate` |
 | 3 类运行工件 | 每次 run 固定落盘 `task_state.json`、`trace.jsonl`、`report.json`。 | `pico/run_store.py` 的 `task_state_path()`、`trace_path()`、`report_path()` |
 
@@ -78,7 +78,7 @@ PY
 
 | 指标 | 值 | 来源字段 |
 | --- | --- | --- |
-| 配置数 | 12 | `_local/benchmark/artifacts/context-ablation-v2.json`: `config_count` |
+| 配置数 | 12 | 历史 context ablation 快照：`config_count` |
 | 平均压缩前 prompt 长度 | 7082.33 | `summary.avg_raw_prompt_chars` |
 | 平均压缩后 prompt 长度 | 5663.67 | `summary.avg_full_prompt_chars` |
 | 平均压缩率 | 16.19% | `summary.avg_prompt_compression_ratio` |
