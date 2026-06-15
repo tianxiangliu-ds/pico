@@ -699,10 +699,10 @@ def test_build_agent_uses_right_codes_shared_key_for_openai_provider(tmp_path):
     assert agent.model_client is fake_client
 
 
-def test_build_arg_parser_defaults_provider_to_deepseek(tmp_path):
+def test_build_arg_parser_leaves_provider_unset_for_runtime_resolution(tmp_path):
     args = pico_pkg.build_arg_parser().parse_args(["--cwd", str(tmp_path)])
 
-    assert args.provider == "deepseek"
+    assert args.provider is None
 
 
 def test_build_arg_parser_accepts_anthropic_provider(tmp_path):
@@ -715,6 +715,76 @@ def test_build_arg_parser_accepts_deepseek_provider(tmp_path):
     args = pico_pkg.build_arg_parser().parse_args(["--cwd", str(tmp_path), "--provider", "deepseek"])
 
     assert args.provider == "deepseek"
+
+
+def test_build_agent_uses_project_env_provider_when_cli_omitted(tmp_path):
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                "PICO_PROVIDER=openai",
+                "PICO_OPENAI_API_BASE=https://www.right.codes/codex/v1",
+                "PICO_OPENAI_API_KEY=sk-project-openai",
+                "PICO_OPENAI_MODEL=gpt-5.4",
+                "PICO_DEEPSEEK_API_KEY=sk-project-deepseek",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    args = pico_pkg.build_arg_parser().parse_args(["--cwd", str(tmp_path)])
+
+    with patch.dict(os.environ, {}, clear=True):
+        with patch(
+            "pico.cli.OllamaModelClient",
+            side_effect=AssertionError("ollama client should not be used"),
+        ), patch(
+            "pico.cli.AnthropicCompatibleModelClient",
+            side_effect=AssertionError("deepseek client should not be used"),
+        ), patch("pico.cli.OpenAICompatibleModelClient") as mock_openai:
+            fake_client = mock_openai.return_value
+            agent = pico_pkg.build_agent(args)
+
+    mock_openai.assert_called_once()
+    assert mock_openai.call_args.kwargs["model"] == "gpt-5.4"
+    assert mock_openai.call_args.kwargs["base_url"] == "https://www.right.codes/codex/v1"
+    assert mock_openai.call_args.kwargs["api_key"] == "sk-project-openai"
+    assert agent.model_client is fake_client
+
+
+def test_build_agent_prefers_cli_provider_over_project_env_provider(tmp_path):
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                "PICO_PROVIDER=openai",
+                "PICO_OPENAI_API_KEY=sk-project-openai",
+                "PICO_DEEPSEEK_API_BASE=https://api.deepseek.com/anthropic",
+                "PICO_DEEPSEEK_API_KEY=sk-project-deepseek",
+                "PICO_DEEPSEEK_MODEL=deepseek-v4-pro",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    args = pico_pkg.build_arg_parser().parse_args(
+        ["--cwd", str(tmp_path), "--provider", "deepseek"]
+    )
+
+    with patch.dict(os.environ, {}, clear=True):
+        with patch(
+            "pico.cli.OllamaModelClient",
+            side_effect=AssertionError("ollama client should not be used"),
+        ), patch(
+            "pico.cli.OpenAICompatibleModelClient",
+            side_effect=AssertionError("openai client should not be used"),
+        ), patch("pico.cli.AnthropicCompatibleModelClient") as mock_anthropic:
+            fake_client = mock_anthropic.return_value
+            agent = pico_pkg.build_agent(args)
+
+    mock_anthropic.assert_called_once()
+    assert mock_anthropic.call_args.kwargs["model"] == "deepseek-v4-pro"
+    assert mock_anthropic.call_args.kwargs["base_url"] == "https://api.deepseek.com/anthropic"
+    assert mock_anthropic.call_args.kwargs["api_key"] == "sk-project-deepseek"
+    assert agent.model_client is fake_client
 
 
 def test_build_agent_uses_anthropic_provider_and_openai_key_fallback(tmp_path):

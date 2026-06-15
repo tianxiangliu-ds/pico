@@ -60,7 +60,23 @@ DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
 DEFAULT_ANTHROPIC_BASE_URL = "https://www.right.codes/claude/v1"
 DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro"
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic"
+DEFAULT_PROVIDER = "deepseek"
+PROVIDER_CHOICES = ("ollama", "openai", "anthropic", "deepseek")
 SECRET_ENV_NAMES_VAR = "PICO_SECRET_ENV_NAMES"
+
+
+def _effective_provider(args):
+    # Provider 选择优先级：
+    # 1. 用户显式传入 --provider
+    # 2. 项目 .env / shell 里的 PICO_PROVIDER
+    # 3. 代码里的默认 provider
+    provider = getattr(args, "provider", None) or provider_env(
+        "PICO_PROVIDER", default=DEFAULT_PROVIDER
+    )
+    if provider not in PROVIDER_CHOICES:
+        choices = ", ".join(PROVIDER_CHOICES)
+        raise ValueError(f"unknown provider: {provider}. expected one of: {choices}")
+    return provider
 
 
 def _effective_model(args, provider):
@@ -103,7 +119,7 @@ def _configured_secret_names(args):
 
 
 def _build_model_client(args):
-    provider = getattr(args, "provider", "deepseek")
+    provider = _effective_provider(args)
     # CLI 只负责把 provider 选择翻译成具体 client。
     # 真正的提示词格式、缓存支持、HTTP 协议差异，都封装在 models.py 里。
     if provider == "openai":
@@ -257,7 +273,12 @@ def build_arg_parser():
     )
     parser.add_argument("prompt", nargs="*", help="Optional one-shot prompt.")
     parser.add_argument("--cwd", default=".", help="Workspace directory.")
-    parser.add_argument("--provider", choices=("ollama", "openai", "anthropic", "deepseek"), default="deepseek", help="Model backend to use.")
+    parser.add_argument(
+        "--provider",
+        choices=PROVIDER_CHOICES,
+        default=None,
+        help="Model backend to use. Defaults to PICO_PROVIDER or deepseek.",
+    )
     parser.add_argument(
         "--model",
         default=None,
