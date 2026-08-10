@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 import pico as pico_pkg
 from pico import (
     AnthropicCompatibleModelClient,
@@ -620,6 +622,82 @@ def test_anthropic_compatible_client_extracts_first_text_block():
     assert result == "<final>ok</final>"
 
 
+def test_anthropic_compatible_client_classifies_thinking_only_truncation():
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {
+                    "content": [
+                        {"type": "thinking", "thinking": "Inspecting the test failures."},
+                    ],
+                    "stop_reason": "max_tokens",
+                    "usage": {"input_tokens": 1000, "output_tokens": 512},
+                }
+            ).encode("utf-8")
+
+    client = AnthropicCompatibleModelClient(
+        model="deepseek-v4-pro",
+        base_url="https://api.deepseek.com/anthropic",
+        api_key="sk-test",
+        temperature=0.2,
+        timeout=30,
+    )
+
+    with patch("urllib.request.urlopen", return_value=FakeResponse()):
+        with pytest.raises(RuntimeError, match="ended before a text block"):
+            client.complete("inspect tests", 512)
+
+    assert client.last_completion_metadata == {
+        "stop_reason": "max_tokens",
+        "content_block_types": ["thinking"],
+        "input_tokens": 1000,
+        "output_tokens": 512,
+    }
+
+
+def test_anthropic_compatible_client_sends_explicit_thinking_mode():
+    captured = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {
+                    "content": [{"type": "text", "text": "<final>ok</final>"}],
+                    "stop_reason": "end_turn",
+                }
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return FakeResponse()
+
+    client = AnthropicCompatibleModelClient(
+        model="deepseek-v4-pro",
+        base_url="https://api.deepseek.com/anthropic",
+        api_key="sk-test",
+        temperature=0.2,
+        timeout=30,
+        thinking={"type": "disabled"},
+    )
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        assert client.complete("inspect tests", 512) == "<final>ok</final>"
+
+    assert captured["body"]["thinking"] == {"type": "disabled"}
+
+
 def test_build_agent_uses_openai_provider_and_model_override(tmp_path):
     args = type(
         "Args",
@@ -906,6 +984,7 @@ def test_build_agent_uses_deepseek_provider_and_env_configuration(tmp_path):
     assert mock_anthropic.call_args.kwargs["model"] == "deepseek-v4-pro"
     assert mock_anthropic.call_args.kwargs["base_url"] == "https://api.deepseek.com/anthropic"
     assert mock_anthropic.call_args.kwargs["api_key"] == "sk-project-deepseek"
+    assert mock_anthropic.call_args.kwargs["thinking"] == {"type": "disabled"}
     assert agent.model_client is fake_client
 
 

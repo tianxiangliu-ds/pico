@@ -135,6 +135,8 @@ uv run pico --model deepseek-v4-pro --base-url https://api.deepseek.com/anthropi
 
 DeepSeek 当前走 Anthropic-compatible Messages API，所以 runtime 里复用的是 Anthropic-compatible client；这只影响 HTTP 协议，不影响 CLI 用法。
 
+Pico 当前使用文本编码的工具协议，因此会在 DeepSeek 请求中显式关闭 provider-native thinking，避免思考内容耗尽单步输出预算或产生无法回放的 thinking block。后续如果接入原生工具协议，需要同时实现 thinking block 的完整回放，不能只删除这个开关。
+
 ### 可选配置：right.codes
 
 right.codes 在 Pico 里有两条可选 provider 路径：

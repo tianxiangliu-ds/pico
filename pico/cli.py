@@ -160,6 +160,10 @@ def _build_model_client(args):
             api_key=api_key,
             temperature=args.temperature,
             timeout=getattr(args, "openai_timeout", getattr(args, "ollama_timeout", 300)),
+            # Pico currently uses text-encoded tool calls and does not replay
+            # provider-native thinking blocks. Keep the default transport mode
+            # deterministic until that protocol is implemented end to end.
+            thinking={"type": "disabled"},
         )
 
     model = _effective_model(args, provider)

@@ -351,21 +351,39 @@ class OpenAICompatibleModelClient:
 
 
 def _extract_anthropic_text(data):
+    texts = []
     for item in data.get("content", []):
         if isinstance(item, dict) and item.get("type") == "text":
             text = item.get("text")
             if isinstance(text, str) and text:
-                return text
-    return ""
+                texts.append(text)
+    return "\n".join(texts)
+
+
+def _extract_anthropic_metadata(data):
+    content_block_types = []
+    for item in data.get("content", []):
+        if isinstance(item, dict):
+            block_type = str(item.get("type", "")).strip()
+            if block_type:
+                content_block_types.append(block_type)
+    usage = data.get("usage") or {}
+    return {
+        "stop_reason": str(data.get("stop_reason", "") or ""),
+        "content_block_types": content_block_types,
+        "input_tokens": usage.get("input_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+    }
 
 
 class AnthropicCompatibleModelClient:
-    def __init__(self, model, base_url, api_key, temperature, timeout):
+    def __init__(self, model, base_url, api_key, temperature, timeout, thinking=None):
         self.model = model
         self.base_url = _normalize_versioned_base_url(base_url)
         self.api_key = api_key
         self.temperature = temperature
         self.timeout = timeout
+        self.thinking = dict(thinking) if thinking else None
         self.supports_prompt_cache = False
         self.last_completion_metadata = {}
 
@@ -392,6 +410,8 @@ class AnthropicCompatibleModelClient:
         }
         if self.temperature is not None:
             payload["temperature"] = self.temperature
+        if self.thinking is not None:
+            payload["thinking"] = dict(self.thinking)
 
         headers = {
             "Content-Type": "application/json",
@@ -435,7 +455,13 @@ class AnthropicCompatibleModelClient:
             ) from exc
         if data.get("error"):
             raise RuntimeError(f"Anthropic-compatible error: {data['error']}")
+        self.last_completion_metadata = _extract_anthropic_metadata(data)
         text = _extract_anthropic_text(data)
         if text:
             return text
-        raise RuntimeError("Anthropic-compatible error: could not extract text from response")
+        stop_reason = self.last_completion_metadata["stop_reason"] or "unknown"
+        content_types = ",".join(self.last_completion_metadata["content_block_types"]) or "none"
+        raise RuntimeError(
+            "Anthropic-compatible response ended before a text block "
+            f"(stop_reason={stop_reason}, content_types={content_types})"
+        )
