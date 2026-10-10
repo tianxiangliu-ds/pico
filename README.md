@@ -1,5 +1,7 @@
 # pico
 
+项目唯一维护仓库是 [tianxiangliu-ds/pico](https://github.com/tianxiangliu-ds/pico)。原 `pico-agent` 仓库仅有重复的 README，现已统一到这里；包名、CLI 命令和模块入口均保持 `pico`。
+
 `pico` 是一个面向代码仓库的轻量本地 coding agent。它直接跑在终端里，先看当前工作区，再用一组受约束的工具去读文件、改文件、跑命令，并把会话状态保存在本地 `.pico/` 目录里。
 
 它更像一个能在仓库里持续工作的命令行助手，不是纯聊天窗口。你可以拿它做代码排查、测试修复、仓库分析，或者让它在当前项目里执行一次性的工程任务。
@@ -25,6 +27,8 @@
   - DeepSeek Anthropic 兼容 API
 
 ## 使用截图
+
+以下为早期界面示例，provider 和默认值以当前 `python -m pico --help` 及本文配置说明为准。
 
 CLI 帮助信息：
 
@@ -265,3 +269,7 @@ uv run ruff check pico tests scripts
 ```
 
 内部代码现在按较轻的边界拆分：`pico/evaluation/` 放 benchmark 和 metrics，`pico/providers/` 放模型 provider client，`pico/features/` 放可选运行时能力。新代码应直接使用这些包路径；旧的 `pico.evaluator`、`pico.metrics`、`pico.models` 和 `pico.memory` import 不再作为公共入口保留。
+
+贡献与验证步骤见 [CONTRIBUTING.md](CONTRIBUTING.md)，凭据与漏洞报告说明见 [SECURITY.md](SECURITY.md)。教学版位于 [`examples/mini-pico/`](examples/mini-pico/)，与完整版本一起维护。
+
+仓库尚未指定开源许可证。代码公开可读，复制、修改和分发权限需要由后续许可证明确。

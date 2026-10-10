@@ -6,6 +6,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+.venv*/
 venv/
 uv.lock
 
@@ -40,6 +41,13 @@ readme_intro_locked/
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+secrets*.json
+*.log
 
 # Local docs not intended for publication
 docs/*
@@ -50,6 +58,7 @@ docs/*
 
 # OS files
 .DS_Store
+Thumbs.db
 
 # Packaging metadata
 pico.egg-info/
